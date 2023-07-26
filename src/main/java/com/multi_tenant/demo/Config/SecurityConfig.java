@@ -36,7 +36,7 @@ public class SecurityConfig
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                         .requestMatchers( "/api/v1/user/**").permitAll()
 //                        .requestMatchers("/api/v1/thrift/**").permitAll()
-//                        .requestMatchers("/api/v1/thrift/**").hasAnyAuthority("THRIFTER", "ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasAnyAuthority( "ADMIN")
 //                        .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN")
                         .anyRequest().authenticated()
                 )

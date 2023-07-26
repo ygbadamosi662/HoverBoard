@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
-import java.util.UUID;
 
 
 @Setter
@@ -13,10 +12,6 @@ import java.util.UUID;
 @Entity
 public class Feature extends Tool
 {
-    @ManyToOne(cascade= CascadeType.ALL)
-    @JoinColumn(name = "portal_id")
-    private Portal portal;
-
     @ManyToMany
     @JoinTable(
             name = "concerns",

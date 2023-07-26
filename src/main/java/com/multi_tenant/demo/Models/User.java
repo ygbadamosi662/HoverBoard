@@ -32,14 +32,17 @@ public class User implements UserDetails
 //    @Column(unique = true)
     private String phone;
 
-    @ManyToMany(mappedBy = "users")
-    private List<Portal> portals;
-
     @OneToMany(mappedBy = "user")
     private List<UserCors> userCors;
 
     @OneToMany(mappedBy = "user")
     private List<Contract> contracts;
+
+    @OneToMany(mappedBy = "user")
+    private List<ToolReceipt> toolReceipts;
+
+    @OneToMany(mappedBy = "owner")
+    private List<Tool> yours;
 
     @Enumerated(EnumType.STRING)
     private Role role;
@@ -49,6 +52,20 @@ public class User implements UserDetails
 
     @UpdateTimestamp
     private LocalDateTime updated_on;
+
+    public boolean if_i_have_dime(Dimension dime)
+    {
+//        checks if user is renting a dimension
+        boolean if_ish = false;
+        for (Contract con: this.getContracts())
+        {
+            if(con.getDime().equals(dime))
+            {
+                if_ish = true;
+            }
+        }
+        return if_ish;
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

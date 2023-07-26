@@ -1,5 +1,6 @@
 package com.multi_tenant.demo.Models;
 
+import com.multi_tenant.demo.Enums.Status;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,27 +14,27 @@ import java.util.UUID;
 @Setter
 @Getter
 @Entity
-public class Portal {
+public class Dimension {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column( name="portal_id")
+    @Column( name="dimension_id")
     private UUID id;
 
     private String name;
 
-    @OneToMany(mappedBy = "portal")
-    List<Feature> features;
+    private String version;
 
-    @OneToMany(mappedBy = "portal")
-    List<Feature> combos;
+    @Column(length = 500)
+    private String description;
 
-    @ManyToMany
-    @JoinTable(
-            name = "Agreement",
-            joinColumns = @JoinColumn(name = "portal_id"),
-            inverseJoinColumns = @JoinColumn(name = "user_id")
-    )
-    private List<User> users;
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+    @OneToMany(mappedBy = "dime")
+    List<Tool> tools;
+
+    @OneToMany(mappedBy = "dime")
+    List<Contract> contracts;
 
     @CreationTimestamp
     private LocalDateTime created_on;

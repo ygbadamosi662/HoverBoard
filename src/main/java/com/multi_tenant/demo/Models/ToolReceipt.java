@@ -1,6 +1,5 @@
 package com.multi_tenant.demo.Models;
 
-import com.multi_tenant.demo.Enums.Status;
 import com.multi_tenant.demo.Enums.Subscription;
 import com.multi_tenant.demo.Enums.Term;
 import jakarta.persistence.*;
@@ -12,16 +11,15 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-
 @Setter
 @Getter
 @Entity
-public class Contract extends Receipt
+public class ToolReceipt extends Receipt
 {
     @ManyToOne(cascade= CascadeType.ALL)
-    @JoinColumn(name = "dime_id")
-    private Dimension dime;
+    @JoinColumn(name = "tool_id")
+    private Tool tool;
 
-    public Contract(){this.setType(Contract.class.getSimpleName());}
+    public ToolReceipt(){this.setType(ToolReceipt.class.getSimpleName());}
 
 }

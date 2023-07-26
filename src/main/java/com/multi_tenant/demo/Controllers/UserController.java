@@ -3,15 +3,15 @@ package com.multi_tenant.demo.Controllers;
 
 import com.multi_tenant.demo.Dtos.LoginDto;
 import com.multi_tenant.demo.Dtos.OriginDto;
+import com.multi_tenant.demo.Dtos.ResponseDtos.DimeResponseDto;
+import com.multi_tenant.demo.Dtos.ResponseDtos.ReceiptResponseDto;
+import com.multi_tenant.demo.Dtos.ResponseDtos.ToolResponseDto;
 import com.multi_tenant.demo.Dtos.ResponseDtos.UserResDto;
+import com.multi_tenant.demo.Dtos.SubscribeDto;
 import com.multi_tenant.demo.Dtos.UserDto;
 import com.multi_tenant.demo.Enums.Status;
-import com.multi_tenant.demo.Models.JwtBlackList;
-import com.multi_tenant.demo.Models.User;
-import com.multi_tenant.demo.Models.UserCors;
-import com.multi_tenant.demo.Repos.JwtBlackListRepo;
-import com.multi_tenant.demo.Repos.UserCorsRepo;
-import com.multi_tenant.demo.Repos.UserRepo;
+import com.multi_tenant.demo.Models.*;
+import com.multi_tenant.demo.Repos.*;
 import com.multi_tenant.demo.Services.JwtService;
 import com.multi_tenant.demo.Utilities.Utility;
 import jakarta.persistence.PersistenceException;
@@ -19,6 +19,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,9 +29,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 
 @RequiredArgsConstructor
@@ -39,6 +40,22 @@ public class UserController
     private final UserRepo userRepo;
 
     private final UserCorsRepo corsRepo;
+
+    private final DimensionRepo dimeRepo;
+
+    private final ToolRepo toolRepo;
+
+    private final ToolReceiptRepo trexRepo;
+
+    private final FeatureRepo featRepo;
+
+    private final CombosRepo comboRepo;
+
+    private final ContractRepo contractRepo;
+
+    private final ToolReceiptRepo toolReceiptRepo;
+
+    private final ReceiptRepo receiptRepo;
 
     private final JwtBlackListRepo blackRepo;
 
@@ -69,7 +86,7 @@ public class UserController
         dto.setPassword(passwordEncoder.encode(dto.getPassword()));
         try
         {
-            return ResponseEntity.ok(userRepo.save(dto.getUser()));
+            return ResponseEntity.ok("Tenant-id: "+userRepo.save(dto.getUser()).getId().toString());
         } catch (PersistenceException e)
         {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
@@ -104,8 +121,8 @@ public class UserController
         return ResponseEntity.ok(res);
     }
 
-    @PostMapping("/origin")
-    public ResponseEntity<?> reg_origin(@Valid @RequestBody OriginDto origin, @Valid HttpServletRequest req)
+    @PostMapping("/register/origin")
+    public ResponseEntity<?> reg_origin(@Valid @RequestBody OriginDto origin, HttpServletRequest req)
     {
         String jwt = jwtService.setJwt(req);
 
@@ -129,6 +146,137 @@ public class UserController
         {
             return ResponseEntity.ok(corsRepo.save(userC).getOrigin());
         } catch (PersistenceException e)
+        {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/get/dimes")
+    public ResponseEntity<?> get_dimes(@Valid @RequestParam int page, HttpServletRequest req)
+    {
+        try
+        {
+            String jwt = jwtService.setJwt(req);
+            if(jwtService.is_cancelled(jwt))
+            {
+                return new ResponseEntity<>("jwt blacklisted,user should login again",
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            Pageable pageable = PageRequest.of(page-1, 20);
+            Slice<Dimension> dimes = dimeRepo.findByStatus(Status.ACTIVE, pageable);
+            List<DimeResponseDto> res = new ArrayList<>();
+            dimes.forEach((dime) -> {
+                res.add(new DimeResponseDto(dime));
+            });
+
+
+            return new ResponseEntity<>(res, HttpStatus.OK);
+        }
+        catch (PersistenceException e)
+        {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/get/tools")
+    public ResponseEntity<?> get_tools(@Valid @RequestParam String dime_id,
+                                       @Valid @RequestParam String type,
+                                       @Valid @RequestParam int page, HttpServletRequest req)
+    {
+        try
+        {
+            String jwt = jwtService.setJwt(req);
+            if(jwtService.is_cancelled(jwt))
+            {
+                return new ResponseEntity<>("jwt blacklisted,user should login again",
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            Optional<Dimension> byId = dimeRepo.findById(UUID.fromString(dime_id));
+            if(byId.isEmpty())
+            {
+                return new ResponseEntity<>("Dime id is not valid", HttpStatus.BAD_REQUEST);
+            }
+
+            Pageable pageable = PageRequest.of(page-1, 20);
+            Slice<Tool> tools = toolRepo.findByTypeAndDime(type, byId.get(), pageable);
+            List<ToolResponseDto> res = new ArrayList<>();
+            tools.forEach((tool) -> {
+                res.add(new ToolResponseDto(tool));
+            });
+
+
+            return new ResponseEntity<>(res, HttpStatus.OK);
+        }
+        catch (PersistenceException e)
+        {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PostMapping("/rent/dime")
+    public ResponseEntity<?> rent_a_dime(@Valid @RequestBody SubscribeDto sub, HttpServletRequest req)
+    {
+        try
+        {
+            String jwt = jwtService.setJwt(req);
+            if(jwtService.is_cancelled(jwt))
+            {
+                return new ResponseEntity<>("jwt blacklisted,user should login again",
+                        HttpStatus.BAD_REQUEST);
+            }
+            User user = jwtService.giveUser();
+            System.out.println(sub.getTerm());
+            Optional<Dimension> byId = dimeRepo.findById(UUID.fromString(sub.getDime_or_tool_id()));
+            System.out.println("hey hey");
+            if(byId.isEmpty())
+            {
+                return new ResponseEntity<>("Dime cannot be found", HttpStatus.BAD_REQUEST);
+            }
+            System.out.println("hey hey");
+//            alot of payment shenanigans will have to happen before the following happens
+            Contract con = sub.getCon();
+            con.setDime(byId.get());
+            con.setUser(user);
+            con.setStatus(Status.ACTIVE);
+            con.setUsage_ends(util.get_tool_usage_end(con));
+            return new ResponseEntity<>(new ReceiptResponseDto(contractRepo.save(con)), HttpStatus.OK);
+        }
+        catch (PersistenceException e)
+        {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PostMapping("/sub/tool")
+    public ResponseEntity<?> sub_a_tool(@Valid @RequestBody SubscribeDto sub, HttpServletRequest req)
+    {
+        try
+        {
+            String jwt = jwtService.setJwt(req);
+            if(jwtService.is_cancelled(jwt))
+            {
+                return new ResponseEntity<>("jwt blacklisted,user should login again",
+                        HttpStatus.BAD_REQUEST);
+            }
+            User user = jwtService.giveUser();
+
+            Optional<Tool> byId = toolRepo.findById(UUID.fromString(sub.getDime_or_tool_id()));
+            if(byId.isEmpty())
+            {
+                return new ResponseEntity<>("Dime cannot be found", HttpStatus.BAD_REQUEST);
+            }
+//            check if user has all dependencies of the tool
+//            alot of payment shenanigans will have to happen before the following happens
+            ToolReceipt tRex = sub.get_tool_receipt();
+            tRex.setTool(byId.get());
+            tRex.setUser(user);
+            tRex.setStatus(Status.ACTIVE);
+            tRex.setUsage_ends(util.get_tool_usage_end(tRex));
+            return new ResponseEntity<>(new ReceiptResponseDto(trexRepo.save(tRex)), HttpStatus.OK);
+        }
+        catch (PersistenceException e)
         {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }

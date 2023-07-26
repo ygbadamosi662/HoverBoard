@@ -25,6 +25,6 @@
 //        registry.addMapping("/other/**")
 //                .allowedOrigins("http://example.com")  // Custom allowed origins for these endpoints
 //                .allowedMethods("GET", "POST", "PUT")
-//                .allowedHeaders("Content-Type");
+//                .allowedHeaders("Content-Product");
 //    }
 //}

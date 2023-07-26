@@ -26,7 +26,7 @@ public class ResponseDto
 
     public String getStringDateTime(LocalDateTime dateTime)
     {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yMM dd, YYYY HH:mm:ss a");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM dd, YYYY HH:mm:ss a");
         return dateTime.format(formatter);
     }
 }

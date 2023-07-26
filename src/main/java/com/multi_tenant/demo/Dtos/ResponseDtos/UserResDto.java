@@ -9,7 +9,6 @@ import lombok.Setter;
 public class UserResDto extends ResponseDto
 {
     private String email;
-
     private String phone;
 
     public UserResDto(User user)
