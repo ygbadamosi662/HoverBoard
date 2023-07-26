@@ -13,6 +13,7 @@ import com.multi_tenant.demo.Enums.Status;
 import com.multi_tenant.demo.Models.*;
 import com.multi_tenant.demo.Repos.*;
 import com.multi_tenant.demo.Services.JwtService;
+import com.multi_tenant.demo.Services.PortalService;
 import com.multi_tenant.demo.Utilities.Utility;
 import jakarta.persistence.PersistenceException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,6 +67,8 @@ public class UserController
     private final AuthenticationManager authenticationManager;
 
     private final Utility util;
+
+    private final PortalService portalService;
 
     @GetMapping("/auth/home")
     public ResponseEntity<?> home()
@@ -275,6 +278,35 @@ public class UserController
             tRex.setStatus(Status.ACTIVE);
             tRex.setUsage_ends(util.get_tool_usage_end(tRex));
             return new ResponseEntity<>(new ReceiptResponseDto(trexRepo.save(tRex)), HttpStatus.OK);
+        }
+        catch (PersistenceException e)
+        {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/get/print")
+    public ResponseEntity<?> get_tools(@Valid String dime_id, HttpServletRequest req)
+    {
+        try
+        {
+            String jwt = jwtService.setJwt(req);
+            if(jwtService.is_cancelled(jwt))
+            {
+                return new ResponseEntity<>("jwt blacklisted,user should login again",
+                        HttpStatus.BAD_REQUEST);
+            }
+            User user = jwtService.giveUser();
+
+            Optional<Dimension> byId = dimeRepo.findById(UUID.fromString(dime_id));
+            if(byId.isEmpty())
+            {
+                return new ResponseEntity<>("Cant find Dime", HttpStatus.BAD_REQUEST);
+            }
+
+            String print = portalService.generatePortalPrint(user, byId.get());
+
+            return new ResponseEntity<>(print, HttpStatus.OK);
         }
         catch (PersistenceException e)
         {

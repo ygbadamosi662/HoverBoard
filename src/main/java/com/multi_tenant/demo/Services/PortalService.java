@@ -47,18 +47,20 @@ public class PortalService
 //            generating portal print
             String portal_print = "";
 
-            for (Receipt receipt: tenant.getToolReceipts())
+            for (ToolReceipt receipt: tenant.getToolReceipts())
             {
                 if(receipt.getStatus().equals(Status.ACTIVE) &&
                         receipt.getUsage_ends().isAfter(LocalDateTime.now()))
                 {
+                    if(receipt.getTool().getDime().equals(dime))
+                    {
+                        String sub = receipt.getSub().name();
+                        String typ = receipt.getType();
+                        String uuid = receipt.getId().toString();
+                        String format_ish = "<"+uuid+"?t\""+typ+"\"?s\""+sub+"\">";
 
-                    String sub = receipt.getSub().name();
-                    String typ = receipt.getType();
-                    String uuid = receipt.getId().toString();
-                    String format_ish = "<"+uuid+"?t\""+typ+"\"?s\""+sub+"\">";
-
-                    portal_print = portal_print + format_ish;
+                        portal_print = portal_print + format_ish;
+                    }
                 }
             }
 
