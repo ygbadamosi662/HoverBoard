@@ -1,6 +1,7 @@
 package com.multi_tenant.demo.Models;
 
 import com.multi_tenant.demo.Enums.Role;
+import com.multi_tenant.demo.Enums.Status;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Setter
 @Getter
@@ -44,6 +46,9 @@ public class User implements UserDetails
     @OneToMany(mappedBy = "owner")
     private List<Tool> yours;
 
+    @OneToMany(mappedBy = "tenant")
+    private List<PortalPrint> prints;
+
     @Enumerated(EnumType.STRING)
     private Role role;
 
@@ -55,16 +60,49 @@ public class User implements UserDetails
 
     public boolean if_i_have_dime(Dimension dime)
     {
-//        checks if user is renting a dimension
-        boolean if_ish = false;
-        for (Contract con: this.getContracts())
+//        checks if user have an active contract with dime
+        if(dime != null)
         {
-            if(con.getDime().equals(dime))
-            {
-                if_ish = true;
-            }
+            return this.getContracts()
+                    .parallelStream()
+                    .anyMatch(con -> con.getDime().equals(dime) && con.getDime().getStatus().equals(Status.ACTIVE));
         }
-        return if_ish;
+        return false;
+    }
+
+    public boolean if_i_have_tool(Tool tool)
+    {
+//        checks if user have an active sub for tool
+        if(tool != null)
+        {
+            return this.getToolReceipts()
+                    .parallelStream()
+                    .anyMatch(rec -> rec.getTool().equals(tool) && rec.getStatus().equals(Status.ACTIVE));
+        }
+        return false;
+    }
+
+    public Contract get_contractByDime(Dimension dime)
+    {
+        if(dime == null) return null;
+
+        List<Contract> cons = this.getContracts()
+                .stream()
+                .filter(con -> con.getDime().equals(dime))
+                .collect(Collectors.toList());
+        return cons.get(0);
+    }
+
+    public ToolReceipt get_toolByDime(Dimension dime)
+    {
+        if(dime == null) return null;
+
+        List<ToolReceipt> recs = this.getToolReceipts()
+                .parallelStream()
+                .filter(rec -> rec.getTool().getDime().equals(dime))
+                .collect(Collectors.toList());
+
+        return recs.get(0);
     }
 
     @Override

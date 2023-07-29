@@ -3,10 +3,7 @@ package com.multi_tenant.demo.Controllers;
 
 import com.multi_tenant.demo.Dtos.LoginDto;
 import com.multi_tenant.demo.Dtos.OriginDto;
-import com.multi_tenant.demo.Dtos.ResponseDtos.DimeResponseDto;
-import com.multi_tenant.demo.Dtos.ResponseDtos.ReceiptResponseDto;
-import com.multi_tenant.demo.Dtos.ResponseDtos.ToolResponseDto;
-import com.multi_tenant.demo.Dtos.ResponseDtos.UserResDto;
+import com.multi_tenant.demo.Dtos.ResponseDtos.*;
 import com.multi_tenant.demo.Dtos.SubscribeDto;
 import com.multi_tenant.demo.Dtos.UserDto;
 import com.multi_tenant.demo.Enums.Status;
@@ -31,6 +28,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 @RequiredArgsConstructor
@@ -47,6 +45,8 @@ public class UserController
     private final ToolRepo toolRepo;
 
     private final ToolReceiptRepo trexRepo;
+
+    private final PortalPrintRepo printRepo;
 
     private final FeatureRepo featRepo;
 
@@ -230,21 +230,30 @@ public class UserController
                         HttpStatus.BAD_REQUEST);
             }
             User user = jwtService.giveUser();
-            System.out.println(sub.getTerm());
+
             Optional<Dimension> byId = dimeRepo.findById(UUID.fromString(sub.getDime_or_tool_id()));
-            System.out.println("hey hey");
+
             if(byId.isEmpty())
             {
                 return new ResponseEntity<>("Dime cannot be found", HttpStatus.BAD_REQUEST);
             }
-            System.out.println("hey hey");
+            Dimension dime = byId.get();
+//            checks if user have an active contract for the dime
+            if(user.if_i_have_dime(dime)) return new
+                        ResponseEntity<>("You have an active contract with us in this dimension, want to upgrade",
+                        HttpStatus.BAD_REQUEST);
+
 //            alot of payment shenanigans will have to happen before the following happens
             Contract con = sub.getCon();
             con.setDime(byId.get());
             con.setUser(user);
             con.setStatus(Status.ACTIVE);
             con.setUsage_ends(util.get_tool_usage_end(con));
-            return new ResponseEntity<>(new ReceiptResponseDto(contractRepo.save(con)), HttpStatus.OK);
+            con = contractRepo.save(con);
+//            generates a portal print
+            PortalPrint print = portalService.get_new_persited_print(user, con);
+
+            return new ResponseEntity<>(new ReceiptResponseDto(con), HttpStatus.OK);
         }
         catch (PersistenceException e)
         {
@@ -270,6 +279,18 @@ public class UserController
             {
                 return new ResponseEntity<>("Dime cannot be found", HttpStatus.BAD_REQUEST);
             }
+            Tool tool = byId.get();
+
+//            checks if user does mot have an active contract with the appropriate dime
+            if(user.if_i_have_dime(tool.getDime()) == false) return new
+                    ResponseEntity<>("You dont have an active contract with the associated dime",
+                    HttpStatus.BAD_REQUEST);
+
+//            checks if user have an active sub for the tool
+            if(user.if_i_have_tool(tool)) return
+                new ResponseEntity<>("You have an active subscription for this tool",
+                        HttpStatus.BAD_REQUEST);
+
 //            check if user has all dependencies of the tool
 //            alot of payment shenanigans will have to happen before the following happens
             ToolReceipt tRex = sub.get_tool_receipt();
@@ -277,7 +298,16 @@ public class UserController
             tRex.setUser(user);
             tRex.setStatus(Status.ACTIVE);
             tRex.setUsage_ends(util.get_tool_usage_end(tRex));
-            return new ResponseEntity<>(new ReceiptResponseDto(trexRepo.save(tRex)), HttpStatus.OK);
+            tRex = trexRepo.save(tRex);
+
+//            updating portal print
+            PortalPrint print = printRepo
+                    .findByContractAndTenant(user.get_contractByDime(tool.getDime()), user);
+            print.getReceipts().add(tRex);
+            print.setPrint(portalService.generate_portal_print(print));
+            printRepo.save(print);
+
+            return new ResponseEntity<>(new ReceiptResponseDto(tRex), HttpStatus.OK);
         }
         catch (PersistenceException e)
         {
@@ -285,8 +315,8 @@ public class UserController
         }
     }
 
-    @GetMapping("/get/print")
-    public ResponseEntity<?> get_tools(@Valid String dime_id, HttpServletRequest req)
+    @GetMapping("/get/prints")
+    public ResponseEntity<?> get_tools(@Valid HttpServletRequest req)
     {
         try
         {
@@ -298,15 +328,20 @@ public class UserController
             }
             User user = jwtService.giveUser();
 
-            Optional<Dimension> byId = dimeRepo.findById(UUID.fromString(dime_id));
-            if(byId.isEmpty())
-            {
-                return new ResponseEntity<>("Cant find Dime", HttpStatus.BAD_REQUEST);
-            }
+            List<PortalPrint> prints = printRepo.findByTenant(user);
+            if(prints == null) return new ResponseEntity<>("You have no portal print",
+                    HttpStatus.BAD_REQUEST);
 
-            String print = portalService.generatePortalPrint(user, byId.get());
+            List<PrintResponseDto> res = prints
+                    .stream()
+                    .map((p) -> {
+                        PrintResponseDto resp = new PrintResponseDto(p);
+                        resp.set_receipts(p.getReceipts());
+                        return resp;
+                    })
+                    .collect(Collectors.toList());
 
-            return new ResponseEntity<>(print, HttpStatus.OK);
+            return new ResponseEntity<>(res, HttpStatus.OK);
         }
         catch (PersistenceException e)
         {
