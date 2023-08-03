@@ -37,6 +37,8 @@ public class PortalService
 
     private final Utility util;
 
+    private String deli = "666";
+
 
     public String print_receipt(ToolReceipt receipt)
     {
@@ -67,7 +69,7 @@ public class PortalService
                     .map(rec -> this.print_receipt(rec))
                     .collect(Collectors.toList());
 
-            prints += String.join("", rec_print);
+            prints += String.join(deli, rec_print);
             return prints;
         }
         return "";
@@ -107,11 +109,13 @@ public class PortalService
     {
 //        returns an empty string if print is null
 //        returns a formatted string otherwise
+//        Always make sure the parameter print has only active tools and contracts, it does not check
         if(print == null) return "";
+
         String con = this.print_contract(print.getContract());
         String ten = this.print_tenant(print.getTenant());
-        String prints = ten + con;
-        if(print.getReceipts() != null) prints += this.print_receipts(print.getReceipts());
+        String prints = ten + deli + con;
+        if(print.getReceipts() != null) prints += deli + this.print_receipts(print.getReceipts());
 
         return prints;
     }
@@ -138,6 +142,7 @@ public class PortalService
             PortalPrint newPrint = new PortalPrint();
             newPrint.setTenant(tenant);
             newPrint.setContract(con);
+            newPrint.setStatus(Status.ACTIVE);
             if(tenant.getToolReceipts() != null)
             {
                 newPrint.setReceipts(this.get_active_receiptsByDime(tenant.getToolReceipts(),

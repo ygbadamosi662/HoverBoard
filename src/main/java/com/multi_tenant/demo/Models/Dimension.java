@@ -36,6 +36,9 @@ public class Dimension {
     @OneToMany(mappedBy = "dime")
     List<Contract> contracts;
 
+    @OneToMany(mappedBy = "dime")
+    List<TenantStorageInfo> storageInfos;
+
     @CreationTimestamp
     private LocalDateTime created_on;
 

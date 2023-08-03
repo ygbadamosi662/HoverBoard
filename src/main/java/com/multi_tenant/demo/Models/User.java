@@ -38,6 +38,9 @@ public class User implements UserDetails
     private List<UserCors> userCors;
 
     @OneToMany(mappedBy = "user")
+    private List<TenantStorageInfo> storages;
+
+    @OneToMany(mappedBy = "user")
     private List<Contract> contracts;
 
     @OneToMany(mappedBy = "user")

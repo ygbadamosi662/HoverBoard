@@ -1,6 +1,11 @@
 write a method to test valid urls(done)....test the connection
+
 implement generation of a portal print, this should be a combination of all features and combos and
 reservations(if any) particular to a tenant(user), this will validate their access level and available
 resources in each dimension, should be lightweight, the goal is to persist tenant access control to avoid
 having to figure out tenant access control on every request, their access control is persisted and can be
 updated as tenants add more faetures, combos or reservations....done
+
+when dimensions queries this api for print validation, they should provide prints id and the api should
+return the print and the tenants id as the response
+

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.ResponseEntity;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PortalPrintRepo extends JpaRepository<PortalPrint, UUID>
@@ -17,4 +18,6 @@ public interface PortalPrintRepo extends JpaRepository<PortalPrint, UUID>
     PortalPrint findByContractAndTenant(Contract con, User tenant);
 
     List<PortalPrint> findByTenant(User tenant);
+
+    Optional<PortalPrint> findByTenantAndContract(User tenant, Contract contract);
 }

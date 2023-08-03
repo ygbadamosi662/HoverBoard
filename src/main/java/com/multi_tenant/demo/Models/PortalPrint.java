@@ -12,6 +12,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Setter
 @Getter
@@ -35,6 +36,9 @@ public class PortalPrint
     @JoinColumn(name = "tenant_id")
     private User tenant;
 
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
     @ElementCollection(targetClass = ToolReceipt.class, fetch = FetchType.EAGER)
     private List<ToolReceipt> receipts;
 
@@ -47,7 +51,7 @@ public class PortalPrint
 
     public boolean if_contract_active()
     {
-//        returns true if contract stillactive
+//        returns true if contract still active
         return this.contract.getStatus().equals(Status.ACTIVE);
     }
 
@@ -63,4 +67,22 @@ public class PortalPrint
         return false;
     }
 
+    public List<ToolReceipt> update_tools()
+    {
+//        removes incative tool receipts and returns the removed receipts
+//        returns null this.receipts is null
+//        save this instance to the database after this method is called.
+        if(this.receipts != null)
+        {
+            List<ToolReceipt> deletedReceipts = this.receipts
+                    .parallelStream()
+                    .map((rec) -> {
+                        if(rec.getStatus().equals(Status.INACTIVE)) this.receipts.remove(rec);
+                        return rec;
+                    })
+                    .collect(Collectors.toList());
+            return deletedReceipts;
+        }
+        return null;
+    }
 }
