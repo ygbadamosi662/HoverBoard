@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 @Getter
 public class PrintResponseDto
 {
+    private String id;
     private String print;
 
     private ReceiptResponseDto contract;
@@ -21,6 +22,7 @@ public class PrintResponseDto
     public PrintResponseDto(PortalPrint p_print)
     {
         this.contract = new ReceiptResponseDto(p_print.getContract());
+        this.id = p_print.getId().toString();
         this.print = p_print.getPrint();
     }
 

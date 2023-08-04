@@ -9,11 +9,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.springframework.stereotype.Service;
 
+import java.lang.reflect.Array;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -30,6 +28,11 @@ public class PortalService
     private final UserRepo userRepo;
 
     private final FeatureRepo featureRepo;
+
+    private final ContractRepo contractRepo;
+
+    private final ToolReceiptRepo toolReceiptRepo;
+    private final ReceiptRepo receiptRepo;
 
     private final PortalPrintRepo printRepo;
 
@@ -115,7 +118,7 @@ public class PortalService
         String con = this.print_contract(print.getContract());
         String ten = this.print_tenant(print.getTenant());
         String prints = ten + deli + con;
-        if(print.getReceipts() != null) prints += deli + this.print_receipts(print.getReceipts());
+        if(!print.getReceipts().isEmpty()) prints += deli + this.print_receipts(print.getReceipts());
 
         return prints;
     }
@@ -154,5 +157,90 @@ public class PortalService
         }
         return null;
     }
+
+    public List<Contract> update_tenant_contracts(User tenant)
+    {
+        if(tenant == null) return null;
+
+        return tenant.get_expired_contracts()
+                .parallelStream()
+                .map((con) -> {
+                    con.setStatus(Status.INACTIVE);
+                    return contractRepo.save(con);
+                })
+                .collect(Collectors.toList());
+    }
+
+    public List<ToolReceipt> update_tenant_toolReceipts(User tenant)
+    {
+        if(tenant == null) return null;
+
+        return tenant.get_expired_toolReceipts()
+                .parallelStream()
+                .map((rec) -> {
+                    rec.setStatus(Status.INACTIVE);
+                    return toolReceiptRepo.save(rec);
+                })
+                .collect(Collectors.toList());
+    }
+
+    public List<Receipt> update_all_tenant_receipts(User tenant)
+    {
+//        returns null if tenant is null
+//        returns the updated and persisted tenant receipts
+        if(tenant != null)
+        {
+            List<Receipt> receipts = tenant.get_expired_receipts();
+            return receipts
+                    .parallelStream()
+                    .map((receipt) -> {
+                        receipt.setStatus(Status.INACTIVE);
+                        return receiptRepo.save(receipt);
+                    })
+                    .collect(Collectors.toList());
+        }
+        return null;
+    }
+
+    public List<Receipt> update_tenant_portfolio(User tenant)
+    {
+//        returns null if tenant is null
+//        returns an empty list of no receipt needs update
+//        returns a list of receipts otherwise
+        if(tenant == null) return null;
+
+        List<Boolean> true_true = new ArrayList<>(Arrays.asList(false, false));
+
+//        if tenant have expired contract
+        if(tenant.chk_for_expired_contract()) true_true.set(0, true);
+//        if tenant have expired toolReceipt
+        if(tenant.chk_for_expired_toolReceipt()) true_true.set(1, true);
+
+//        returns all expired receipts, contracts and toolReceipts
+        if(true_true.get(0) && true_true.get(0)) return this.update_all_tenant_receipts(tenant);
+
+        List<Receipt> receipts = new ArrayList<>();
+
+//        if no update is needed
+        if((true_true.get(0) == false) && (true_true.get(1) == false)) return receipts;
+
+//        gets expired contracts
+        if(true_true.get(0))
+        {
+            receipts.addAll(this.update_tenant_contracts(tenant));
+        }
+//        gets expired toolReceipts
+        if(true_true.get(1))
+        {
+            receipts.addAll(this.update_tenant_toolReceipts(tenant));
+        }
+
+        return receipts;
+
+
+
+    }
+
+
 
 }

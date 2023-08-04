@@ -12,6 +12,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -68,7 +69,8 @@ public class User implements UserDetails
         {
             return this.getContracts()
                     .parallelStream()
-                    .anyMatch(con -> con.getDime().equals(dime) && con.getDime().getStatus().equals(Status.ACTIVE));
+                    .anyMatch(con -> con.getDime().equals(dime) && con.getDime()
+                            .getStatus().equals(Status.ACTIVE));
         }
         return false;
     }
@@ -106,6 +108,66 @@ public class User implements UserDetails
                 .collect(Collectors.toList());
 
         return recs.get(0);
+    }
+
+    public List<Receipt> get_expired_receipts()
+    {
+        LocalDateTime now = LocalDateTime.now();
+        List<Receipt> receipts = this.toolReceipts
+                .parallelStream()
+                .filter(receipt -> receipt.getUsage_ends().isBefore(now))
+                .collect(Collectors.toList());
+
+        receipts.addAll(
+                this.getContracts()
+                        .parallelStream()
+                        .filter(con -> con.getUsage_ends().isBefore(now))
+                        .collect(Collectors.toList())
+                );
+
+        return receipts;
+    }
+
+    public boolean chk_for_expired_toolReceipt()
+    {
+        if(this.toolReceipts.isEmpty()) return false;
+
+        return this.toolReceipts
+                    .parallelStream()
+                    .anyMatch(rec -> rec.getUsage_ends().isBefore(LocalDateTime.now()));
+    }
+
+    public boolean chk_for_expired_contract()
+    {
+        if(this.contracts.isEmpty()) return false;
+
+        return this.contracts
+                .parallelStream()
+                .anyMatch(rec -> rec.getUsage_ends().isBefore(LocalDateTime.now()));
+    }
+
+    public List<Contract> get_expired_contracts()
+    {
+//        returns null if this.contracts is empty
+//        returns contracts that their usage_ends has passed
+        if(this.contracts.isEmpty()) return null;
+
+        return this.contracts
+                .parallelStream()
+                .filter(con -> con.getUsage_ends().isBefore(LocalDateTime.now()))
+                .collect(Collectors.toList());
+    }
+
+    public List<ToolReceipt> get_expired_toolReceipts()
+    {
+//        returns null if this.toolReceipts is empty
+//        returns toolReceipts that their usage_ends has passed
+        if(this.toolReceipts.isEmpty()) return null;
+
+        return this.toolReceipts
+                .parallelStream()
+                .filter(con -> con.getUsage_ends().isBefore(LocalDateTime.now()))
+                .collect(Collectors.toList());
     }
 
     @Override

@@ -23,7 +23,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -45,15 +44,7 @@ public class UserController
 
     private final PortalPrintRepo printRepo;
 
-    private final FeatureRepo featRepo;
-
-    private final CombosRepo comboRepo;
-
     private final ContractRepo contractRepo;
-
-    private final ToolReceiptRepo toolReceiptRepo;
-
-    private final ReceiptRepo receiptRepo;
 
     private final JwtBlackListRepo blackRepo;
 
@@ -98,29 +89,63 @@ public class UserController
     @PostMapping("/auth/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginDto login)
     {
-        Optional<User> chk_chk = userRepo.findByEmail(login.getEmail());
-
-        if(!chk_chk.isPresent())
+        try
         {
-            return new ResponseEntity<>("email or password incorrect", HttpStatus.BAD_REQUEST);
+            Optional<User> chk_chk = userRepo.findByEmail(login.getEmail());
+
+            if(!chk_chk.isPresent())
+            {
+                return new ResponseEntity<>("email or password incorrect", HttpStatus.BAD_REQUEST);
+            }
+
+            User user = chk_chk.get();
+
+            UsernamePasswordAuthenticationToken token =new UsernamePasswordAuthenticationToken(
+                    login.getEmail(),
+                    login.getPassword(),
+                    user.getAuthorities()
+            );
+
+            authenticationManager.authenticate(token);
+            String jwt = jwtService.generateJwt(user);
+
+            Map<String, String> res = new HashMap<>();
+            res.put("Message", "Login successfull");
+            res.put("Jwt", jwt);
+
+            List<Receipt> receipts = portalService.update_tenant_portfolio(user);
+            if(!receipts.isEmpty())
+            {
+//                when notification is implemented,
+//                notify the user for the update on each of the receipts
+
+            }
+            System.out.println(receipts.isEmpty());
+
+            return ResponseEntity.ok(res);
+        } catch (PersistenceException e)
+        {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
 
-        User user = chk_chk.get();
+    }
 
-        UsernamePasswordAuthenticationToken token =new UsernamePasswordAuthenticationToken(
-                login.getEmail(),
-                login.getPassword(),
-                user.getAuthorities()
-        );
+    @GetMapping("/signout")
+    public ResponseEntity<?> signout(HttpServletRequest req)
+    {
+        try
+        {
+            String jwt = jwtService.setJwt(req);
+            JwtBlackList a_nigga = new JwtBlackList(jwt);
+            blackRepo.save(a_nigga);
 
-        authenticationManager.authenticate(token);
-        String jwt = jwtService.generateJwt(user);
+            return new ResponseEntity<>("See you later", HttpStatus.OK);
 
-        Map<String, String> res = new HashMap<>();
-        res.put("Message", "Login successfull");
-        res.put("Jwt", jwt);
+        } catch (PersistenceException e)
+        {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
 
-        return ResponseEntity.ok(res);
     }
 
     @PostMapping("/register/origin")
@@ -251,7 +276,6 @@ public class UserController
             con = contractRepo.save(con);
 //            generates a portal print
             PortalPrint print = portalService.get_new_persited_print(user, con);
-            System.out.println(print.getId().toString());
 
             return new ResponseEntity<>(new ReceiptResponseDto(con), HttpStatus.OK);
         }
@@ -431,7 +455,6 @@ public class UserController
 //                saving the print
                 print = printRepo.save(print);
             }
-
             return new ResponseEntity<>(new DimeApiResponseDto(print), HttpStatus.OK);
         }
         catch (PersistenceException e)
